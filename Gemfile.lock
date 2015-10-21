@@ -1,0 +1,21 @@
+PATH
+  remote: .
+  specs:
+    memcached-client (0.0.1)
+      ione (~> 1.2)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ione (1.2.0)
+    rake (10.4.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  memcached-client!
+  rake (~> 10.0)
+
+BUNDLED WITH
+   1.10.6
