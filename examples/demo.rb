@@ -106,8 +106,6 @@ def set_and_get(host)
   p c.get(['flagged', 'nonexist', 'some_key'])
   puts 'Note that there is no reference to the nonexist key in the result since it ' +
          'does not exist.'
-rescue => e
-  puts "excp: #{e.message}"
 end
 
 # The intention is for the user to uncomment one of these lines and try it out.
