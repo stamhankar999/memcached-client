@@ -5,4 +5,6 @@ module MemcachedClient
       # no-op
     end
   end
+
+  private_constant :NullLogger
 end
