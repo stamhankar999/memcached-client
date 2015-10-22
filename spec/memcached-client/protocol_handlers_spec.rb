@@ -35,7 +35,7 @@ end
 describe 'MemcachedClient::MemcachedProtocolHandler' do
   let(:connection) { double('connection') }
   let(:logger) { double('logger') }
-  let(:handler) { MemcachedClient::VisibleMemcachedProtocolHandler.new(connection, logger)}
+  let(:handler) { MemcachedClient::VisibleMemcachedProtocolHandler.new(connection, logger) }
 
   before do
     allow(logger).to receive(:puts)
@@ -70,13 +70,39 @@ describe 'MemcachedClient::MemcachedProtocolHandler' do
         handler.get([])
       }.to raise_error(RuntimeError)
     end
+
+    it 'should raise an error if the key contains CR or LF' do
+      expect {
+        handler.get("x\r")
+      }.to raise_error(RuntimeError)
+
+      expect {
+        handler.get("x\n")
+      }.to raise_error(RuntimeError)
+
+      expect {
+        handler.get(['y', "x\n"])
+      }.to raise_error(RuntimeError)
+    end
+
+    it 'should raise an error if the key is not a string or array' do
+      expect {
+        handler.get(7)
+      }.to raise_error(RuntimeError)
+    end
+
+    it 'should raise an error if the key is an array containing a non-string' do
+      expect {
+        handler.get([7])
+      }.to raise_error(RuntimeError)
+    end
   end
 
   context :set do
     it 'should register a new SetCommandHandler in the handler-queue and emit the right command' do
       expect(connection).to receive(:write).with("set mykey 8 7 5\r\n12345\r\n")
 
-      handler.set('mykey', '12345', {flags: 8, expiration: 7})
+      handler.set('mykey', '12345', { flags: 8, expiration: 7 })
       expect(handler.handler_queue.first[:handler].class.to_s).
         to eq('MemcachedClient::SetCommandHandler')
     end
@@ -87,31 +113,41 @@ describe 'MemcachedClient::MemcachedProtocolHandler' do
       expect(connection).to receive(:write).
                               with("set mykey 8 #{expire_time.to_i} 5\r\n12345\r\n")
 
-      handler.set('mykey', '12345', {flags: 8, expiration: expire_time})
+      handler.set('mykey', '12345', { flags: 8, expiration: expire_time })
     end
 
     it 'should raise an error if the key argument is nil' do
       expect {
-        handler.set(nil, '12345', {flags: 0, expiration: 0})
+        handler.set(nil, '12345', { flags: 0, expiration: 0 })
       }.to raise_error(RuntimeError)
     end
 
     it 'should raise an error if the key argument is not a string' do
       expect {
-        handler.set(3, '12345', {flags: 0, expiration: 0})
+        handler.set(3, '12345', { flags: 0, expiration: 0 })
       }.to raise_error(RuntimeError)
     end
 
     it 'should raise an error if the key argument is an empty string' do
       expect {
-        handler.set('', '12345', {flags: 0, expiration: 0})
+        handler.set('', '12345', { flags: 0, expiration: 0 })
+      }.to raise_error(RuntimeError)
+    end
+
+    it 'should raise an error if the key contains CR or LF' do
+      expect {
+        handler.set("x\r", '12345', { flags: 0, expiration: 0 })
+      }.to raise_error(RuntimeError)
+
+      expect {
+        handler.set("x\n", '12345', { flags: 0, expiration: 0 })
       }.to raise_error(RuntimeError)
     end
   end
 
   it 'should mark the protocol-handler as bad if the command-handler raises' do
     allow(connection).to receive(:write)
-    handler.set('mykey', '12345', {flags: 8, expiration: 7})
+    handler.set('mykey', '12345', { flags: 8, expiration: 7 })
 
     allow(handler.handler_queue.first[:handler]).to receive(:handle_line).and_raise("yikes")
 
@@ -122,11 +158,11 @@ describe 'MemcachedClient::MemcachedProtocolHandler' do
 
   it 'should fail pending promises if the command-handler raises' do
     allow(connection).to receive(:write)
-    handler.set('mykey', '12345', {flags: 8, expiration: 7})
+    handler.set('mykey', '12345', { flags: 8, expiration: 7 })
 
     # Add on a fake pending command-handler/promise.
     p = double('promise')
-    handler.handler_queue << {handler: 'foo', promise: p}
+    handler.handler_queue << { handler: 'foo', promise: p }
 
     allow(handler.handler_queue.first[:handler]).to receive(:handle_line).and_raise("yikes")
     expect(p).to receive(:fail)

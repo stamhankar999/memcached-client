@@ -51,15 +51,17 @@ module MemcachedClient
     end
 
     def get(key_or_list)
-      raise 'one or more keys must be provided' if key_or_list.nil? || key_or_list.empty?
-
-      # TODO: Verify that the arg is actually an Array or String, and if an array that
-      # its elements are strings.
+      raise 'one or more keys must be provided' if key_or_list.nil? ||
+        (key_or_list.respond_to?(:empty?) && key_or_list.empty?)
 
       # Unify to an array of keys
       keys = key_or_list.is_a?(Array) ? key_or_list : [key_or_list]
 
       @logger.puts "#{self.object_id}: got to get of #{keys.inspect}"
+
+      keys.each do |k|
+        validate_key(k)
+      end
 
       # Set up the lower-level handler for the 'get' command and the promise that
       # we'll ultimately fulfill. It's important to do this *before* writing the
@@ -77,7 +79,7 @@ module MemcachedClient
     end
 
     def set(key, value, options)
-      raise 'key must be a non-empty string' if !key.is_a?(String) || key.empty?
+      validate_key(key)
 
       # TODO: Validate that the flags and expiration keys in the options hash are
       # valid.
@@ -92,21 +94,6 @@ module MemcachedClient
 
       # Return the future...
       promise.future
-    end
-
-    def register_command(cmd)
-      promise = Ione::Promise.new
-      self.synchronize do
-        # We do this under a lock because the io-reactor may invoke our
-        # response-callback to fulfill the active promise, which involves mutating
-        # this array.
-        # TODO: Consider replacing this with a proper Queue, which is mt-safe.
-        @handler_queue << {
-          handler: cmd,
-          promise: promise
-        }
-      end
-      promise
     end
 
     def handle_response(result, error=false)
@@ -147,6 +134,28 @@ module MemcachedClient
         h[:promise].fail(StandardError.new('Cascaded failure on connection; see an ' +
                                              'earlier future for the originating error'))
       end
+    end
+
+    private
+
+    def register_command(cmd)
+      promise = Ione::Promise.new
+      self.synchronize do
+        # We do this under a lock because the io-reactor may invoke our
+        # response-callback to fulfill the active promise, which involves mutating
+        # this array.
+        # TODO: Consider replacing this with a proper Queue, which is mt-safe.
+        @handler_queue << {
+          handler: cmd,
+          promise: promise
+        }
+      end
+      promise
+    end
+
+    def validate_key(key)
+      raise 'key must be a non-empty string' if !key.is_a?(String) || key.empty?
+      raise 'key must not contain CR or LF characters' if key.index(/[\r\n]/)
     end
   end
 
